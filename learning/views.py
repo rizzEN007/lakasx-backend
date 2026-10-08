@@ -1,4 +1,10 @@
+from unittest import result
+
 from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from .services.placement import analyze_placement
 from .models import(
       Student, 
       Level, 
@@ -48,6 +54,12 @@ class QuestionAttemptViewSet(viewsets.ModelViewSet):
 class PlacementAssessmentViewSet(viewsets.ModelViewSet):
     queryset = PlacementAssessment.objects.all()
     serializer_class = PlacementAssessmentSerializer    
+
+    @action(detail=True, methods=["get"])
+    def analyze(self, request, pk=None):
+        result = analyze_placement(pk)
+        return Response(result)
+     
 class PlacementAttemptViewSet(viewsets.ModelViewSet):
     queryset = PlacementAttempt.objects.all()
     serializer_class = PlacementAttemptSerializer   
