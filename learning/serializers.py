@@ -30,7 +30,30 @@ class QuestionSerializer(serializers.ModelSerializer):
 class QuestionAttemptSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuestionAttempt
-        fields = "__all__"
+        fields = [
+            "id",
+            "question",
+            "practice_session",
+            "answer_given",
+            "attempted_at",
+            "is_correct",
+        ]
+        read_only_fields = ["attempted_at", "is_correct"]
+
+    def create(self, validated_data):
+            question = validated_data["question"]
+            answer_given = validated_data["answer_given"]
+
+            is_correct = (
+                question.answer.strip().lower() 
+                == answer_given.strip().lower()
+            )
+
+            return QuestionAttempt.objects.create(
+            **validated_data,
+            is_correct=is_correct,
+            )
+            
 
 class PlacementAssessmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -40,4 +63,26 @@ class PlacementAssessmentSerializer(serializers.ModelSerializer):
 class PlacementAttemptSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlacementAttempt
-        fields = "__all__"
+        fields = [
+            "id",
+            "assessment",
+            "question",
+            "answer_given",
+            "is_correct",
+            "attempted_at",
+        ]
+        read_only_fields = ["is_correct", "attempted_at"]
+
+    def create(self, validated_data):
+        question = validated_data["question"]
+        answer_given = validated_data["answer_given"]
+
+        is_correct = (
+            answer_given.strip().lower()
+            == question.answer.strip().lower()
+        )
+
+        return PlacementAttempt.objects.create(
+            **validated_data,
+            is_correct=is_correct,
+        )
