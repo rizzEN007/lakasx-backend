@@ -20,3 +20,11 @@ class PracticeSession(models.Model):
 
     def __str__(self):
         return f"{self.student.name} - {self.started_at}"
+
+class Question(models.Model):
+    text = models.TextField()
+    answer = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.text
