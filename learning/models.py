@@ -8,3 +8,15 @@ class Student(models.Model):
 
     def __str__(self):
         return self.name
+
+class PracticeSession(models.Model):
+    student = models.ForeignKey(
+        Student, 
+        on_delete=models.CASCADE,
+        related_name="practice_sessions",
+        )
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.student.name} - {self.started_at}"
