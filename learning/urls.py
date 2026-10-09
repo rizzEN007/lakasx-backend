@@ -20,6 +20,12 @@ from .views import(
     PlacementAttemptViewSet, 
     )
 
+from .school_views import (
+    SchoolListView,
+    SchoolMemberListCreateView,
+    SchoolMemberDetailView,
+)
+
 router = DefaultRouter()
 
 router.register("students", StudentViewSet)
@@ -44,5 +50,16 @@ urlpatterns = [
         name="token_refresh",
     ),
     path("auth/me/", MeView.as_view(), name="me"),
+    path("schools/", SchoolListView.as_view(), name="school-list"),
+    path(
+        "schools/<int:school_id>/members/",
+        SchoolMemberListCreateView.as_view(),
+        name="school-members",
+    ),
+    path(
+        "schools/<int:school_id>/members/<int:membership_id>/",
+        SchoolMemberDetailView.as_view(),
+        name="school-member-detail",
+    ),
     path("", include(router.urls)),
 ]

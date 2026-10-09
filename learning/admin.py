@@ -1,6 +1,17 @@
 from django.contrib import admin
-from .models import School, SchoolMembership, Classroom
-
+from .models import(
+    Student,
+    Level,
+    Topic,
+    PracticeSession,
+    Question,
+    QuestionAttempt,
+    PlacementAssessment,
+    PlacementAttempt,
+    School,
+    SchoolMembership,
+    Classroom,
+)
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
@@ -23,3 +34,14 @@ class ClassroomAdmin(admin.ModelAdmin):
     list_display = ("name", "school", "grade_level", "academic_year")
     list_filter = ("school", "academic_year", "grade_level")
     search_fields = ("name", "school__name")
+
+admin.site.register([
+    Student,
+    Level,
+    Topic,
+    PracticeSession,
+    Question,
+    QuestionAttempt,
+    PlacementAssessment,
+    PlacementAttempt,
+])
