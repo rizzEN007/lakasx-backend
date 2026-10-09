@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 
 class Student(models.Model):
@@ -36,6 +37,20 @@ class PracticeSession(models.Model):
         return f"{self.student.name} - {self.started_at}"
 
 class Question(models.Model):
+    level = models.ForeignKey(
+        Level,
+        on_delete=models.PROTECT,
+        related_name="questions",
+        null=True,
+        blank=True, 
+    )
+    topic = models.ForeignKey(
+        Topic,
+        on_delete=models.PROTECT,
+        related_name="questions",
+        null=True,
+        blank=True,
+    )
     text = models.TextField()
     answer = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -98,3 +113,80 @@ class PlacementAttempt(models.Model):
 
     def __str__(self):
         return f"{self.question.text} - {self.is_correct}"
+
+class School(models.Model):
+    name = models.CharField(max_length=150)
+    code = models.SlugField(max_length=50, unique=True)
+    contact_email = models.EmailField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+class SchoolMembership(models.Model):
+
+    class Role(models.TextChoices):
+        ADMIN = "ADMIN", "School Administrator"
+        TEACHER = "TEACHER", "Teacher"
+        STUDENT = "STUDENT", "Student"
+
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="memberships",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="school_memberships",
+    )
+    role = models.CharField(
+        max_length=10,
+        choices=Role.choices,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "user"],
+                name="unique_user_membership_per_school",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user} — {self.school} ({self.role})"
+
+
+class Classroom(models.Model):
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="classrooms",
+    )
+    name = models.CharField(max_length=100)
+    grade_level = models.CharField(max_length=30, blank=True)
+    academic_year = models.CharField(max_length=20, blank=True)
+    teachers = models.ManyToManyField(
+        SchoolMembership,
+        related_name="teaching_classrooms",
+        blank=True,
+    )
+    students = models.ManyToManyField(
+        SchoolMembership,
+        related_name="enrolled_classrooms",
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "name", "academic_year"],
+                name="unique_classroom_per_school_year",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.school.name} — {self.name}" 
+    

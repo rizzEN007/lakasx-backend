@@ -1,4 +1,14 @@
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
+
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+
+from .auth_views import RegisterView, MeView
+
 from .views import(
     StudentViewSet, 
     PracticeSessionViewSet, 
@@ -21,4 +31,18 @@ router.register("question-attempts", QuestionAttemptViewSet)
 router.register("placement-assessments", PlacementAssessmentViewSet)
 router.register("placement-attempts", PlacementAttemptViewSet)
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("auth/register/", RegisterView.as_view(), name="register"),
+    path(
+        "auth/login/",
+        TokenObtainPairView.as_view(),
+        name="token_obtain_pair",
+    ),
+    path(
+        "auth/token/refresh/",
+        TokenRefreshView.as_view(),
+        name="token_refresh",
+    ),
+    path("auth/me/", MeView.as_view(), name="me"),
+    path("", include(router.urls)),
+]

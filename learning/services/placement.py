@@ -5,7 +5,7 @@ from ..models import PlacementAssessment
 def analyze_placement(assessment_id):
     assessment = (
         PlacementAssessment.objects
-        .selecet_related("student")
+        .select_related("student")
         .prefetch_related(
         "attempts__question__level",
         "attempts__question__topic",
