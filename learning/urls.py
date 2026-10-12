@@ -37,19 +37,36 @@ router.register("placement-assessments", PlacementAssessmentViewSet)
 router.register("placement-attempts", PlacementAttemptViewSet)
 
 urlpatterns = [
-    path("auth/register/", RegisterView.as_view(), name="register"),
+    path(
+        "auth/register/",
+          RegisterView.as_view(),
+          name="register"
+    ),
+
     path(
         "auth/login/",
         LoginView.as_view(),
         name="token_obtain_pair",
     ),
+
     path(
         "auth/token/refresh/",
         TokenRefreshView.as_view(),
         name="token_refresh",
     ),
-    path("auth/me/", MeView.as_view(), name="me"),
-    path("schools/", SchoolListView.as_view(), name="school-list"),
+
+    path(
+        "auth/me/", 
+        MeView.as_view(), 
+        name="me"
+    ),
+
+    path(
+        "schools/", 
+        SchoolListView.as_view(), 
+        name="school-list"
+    ),
+
     path(
         "schools/<int:school_id>/members/",
         SchoolMemberListCreateView.as_view(),
@@ -60,5 +77,8 @@ urlpatterns = [
         SchoolMemberDetailView.as_view(),
         name="school-member-detail",
     ),
-    path("", include(router.urls)),
+    path(
+        "", 
+        include(router.urls)
+    ),
 ]
