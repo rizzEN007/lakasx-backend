@@ -4,8 +4,21 @@ from django.conf import settings
 
 class Student(models.Model):
     name = models.CharField(max_length=100)
-    email = models.EmailField(unique=True)
+    email = models.EmailField()
+    school = models.ForeignKey(
+        "School",
+        on_delete=models.PROTECT,
+        related_name="students",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school","email"],
+                name="unique_student_email_per_school",
+            ),
+        ]
 
     def __str__(self):
         return self.name

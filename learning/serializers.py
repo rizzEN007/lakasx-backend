@@ -1,33 +1,107 @@
 from rest_framework import serializers
-from .models import (PlacementAssessment, Question, Student, PracticeSession, QuestionAttempt, Level, Topic, PlacementAttempt)
+
+from .access import can_access_school, STAFF_ROLES
+from .models import (
+    PlacementAssessment,
+    PlacementAttempt,
+    Question,
+    Student,
+    PracticeSession,
+    QuestionAttempt,
+    Level,
+    Topic,
+    SchoolMembership,
+)
 
 
-class StudentSerializer(serializers.ModelSerializer):
+class SchoolScopedSerializerMixin:
+    def can_access_school(self, school_id):
+        request = self.context.get("request")
+        return bool(
+            request
+            and request.user.is_authenticated
+            and can_access_school(request.user, school_id)
+        )
+
+
+class StudentSerializer(
+    SchoolScopedSerializerMixin,
+    serializers.ModelSerializer,
+):
     class Meta:
         model = Student
-        fields = "__all__"
+        fields = ["id", "name", "email", "school", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_school(self, school):
+        if not self.can_access_school(school.pk):
+            raise serializers.ValidationError(
+                "You cannot manage students for this school."
+            )
+
+        if self.instance and school.pk != self.instance.school_id:
+            raise serializers.ValidationError(
+                "Changing a student's school requires a dedicated transfer workflow."
+            )
+
+        return school
+
 
 class LevelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Level
         fields = "__all__"
 
+
 class TopicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Topic
         fields = "__all__"
 
-class PracticeSessionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PracticeSession
-        fields = "__all__"
 
 class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = "__all__"
 
-class QuestionAttemptSerializer(serializers.ModelSerializer):
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+
+        if request and request.user.is_authenticated:
+            user = request.user
+            is_staff = user.is_superuser or SchoolMembership.objects.filter(
+                user=user,
+                role__in=STAFF_ROLES,
+            ).exists()
+
+            if not is_staff:
+                data["answer"] = None
+
+        return data
+
+
+class PracticeSessionSerializer(
+    SchoolScopedSerializerMixin,
+    serializers.ModelSerializer,
+):
+    class Meta:
+        model = PracticeSession
+        fields = "__all__"
+        read_only_fields = ["id", "started_at"]
+
+    def validate_student(self, student):
+        if not self.can_access_school(student.school_id):
+            raise serializers.ValidationError(
+                "You cannot create or manage sessions for this student."
+            )
+        return student
+
+
+class QuestionAttemptSerializer(
+    SchoolScopedSerializerMixin,
+    serializers.ModelSerializer,
+):
     class Meta:
         model = QuestionAttempt
         fields = [
@@ -38,29 +112,52 @@ class QuestionAttemptSerializer(serializers.ModelSerializer):
             "attempted_at",
             "is_correct",
         ]
-        read_only_fields = ["attempted_at", "is_correct"]
+        read_only_fields = ["id", "attempted_at", "is_correct"]
+
+    def validate_practice_session(self, session):
+        if not self.can_access_school(session.student.school_id):
+            raise serializers.ValidationError(
+                "You cannot access this practice session."
+            )
+        return session
 
     def create(self, validated_data):
-            question = validated_data["question"]
-            answer_given = validated_data["answer_given"]
+        question = validated_data["question"]
+        answer_given = validated_data["answer_given"]
 
-            is_correct = (
-                question.answer.strip().lower() 
-                == answer_given.strip().lower()
-            )
+        expected = question.answer
+        is_correct = (
+            expected is not None
+            and expected.strip().casefold() == answer_given.strip().casefold()
+        )
 
-            return QuestionAttempt.objects.create(
+        return QuestionAttempt.objects.create(
             **validated_data,
             is_correct=is_correct,
-            )
-            
+        )
 
-class PlacementAssessmentSerializer(serializers.ModelSerializer):
+
+class PlacementAssessmentSerializer(
+    SchoolScopedSerializerMixin,
+    serializers.ModelSerializer,
+):
     class Meta:
         model = PlacementAssessment
-        fields = "__all__"  
+        fields = "__all__"
+        read_only_fields = ["id", "started_at"]
 
-class PlacementAttemptSerializer(serializers.ModelSerializer):
+    def validate_student(self, student):
+        if not self.can_access_school(student.school_id):
+            raise serializers.ValidationError(
+                "You cannot create or manage assessments for this student."
+            )
+        return student
+
+
+class PlacementAttemptSerializer(
+    SchoolScopedSerializerMixin,
+    serializers.ModelSerializer,
+):
     class Meta:
         model = PlacementAttempt
         fields = [
@@ -71,15 +168,23 @@ class PlacementAttemptSerializer(serializers.ModelSerializer):
             "is_correct",
             "attempted_at",
         ]
-        read_only_fields = ["is_correct", "attempted_at"]
+        read_only_fields = ["id", "is_correct", "attempted_at"]
+
+    def validate_assessment(self, assessment):
+        if not self.can_access_school(assessment.student.school_id):
+            raise serializers.ValidationError(
+                "You cannot access this placement assessment."
+            )
+        return assessment
 
     def create(self, validated_data):
         question = validated_data["question"]
         answer_given = validated_data["answer_given"]
 
+        expected = question.answer
         is_correct = (
-            answer_given.strip().lower()
-            == question.answer.strip().lower()
+            expected is not None
+            and expected.strip().casefold() == answer_given.strip().casefold()
         )
 
         return PlacementAttempt.objects.create(
