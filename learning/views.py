@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, mixins
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -29,6 +29,13 @@ from .serializers import (
     PlacementAttemptSerializer,
 )
 
+class AppendOnlyViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Attempts are a record of what happened: create and read only.""" 
 
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.all()
@@ -83,7 +90,7 @@ class PracticeSessionViewSet(viewsets.ModelViewSet):
         )
 
 
-class QuestionAttemptViewSet(viewsets.ModelViewSet):
+class QuestionAttemptViewSet(AppendOnlyViewSet):
     queryset = QuestionAttempt.objects.all()
     serializer_class = QuestionAttemptSerializer
     permission_classes = [IsAuthenticated]
@@ -96,7 +103,7 @@ class QuestionAttemptViewSet(viewsets.ModelViewSet):
         )
 
 
-class PlacementAssessmentViewSet(viewsets.ModelViewSet):
+class PlacementAssessmentViewSet(AppendOnlyViewSet):
     queryset = PlacementAssessment.objects.all()
     serializer_class = PlacementAssessmentSerializer
     permission_classes = [IsAuthenticated]
@@ -115,7 +122,7 @@ class PlacementAssessmentViewSet(viewsets.ModelViewSet):
         return Response(result)
 
 
-class PlacementAttemptViewSet(viewsets.ModelViewSet):
+class PlacementAttemptViewSet(AppendOnlyViewSet):
     queryset = PlacementAttempt.objects.all()
     serializer_class = PlacementAttemptSerializer
     permission_classes = [IsAuthenticated]

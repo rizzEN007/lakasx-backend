@@ -64,20 +64,26 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = Question
         fields = "__all__"
 
+    def _sees_answers(self):
+        if not hasattr(self, "_sees_answers_cache"):
+            request = self.context.get("request")
+            user = getattr(request, "user", None)
+            self._sees_answers_cache = bool(
+                user
+                and user.is_authenticated
+                and (
+                    user.is_superuser
+                    or SchoolMembership.objects.filter(
+                        user=user, role__in=STAFF_ROLES
+                    ).exists()
+                )
+            )
+        return self._sees_answers_cache
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        request = self.context.get("request")
-
-        if request and request.user.is_authenticated:
-            user = request.user
-            is_staff = user.is_superuser or SchoolMembership.objects.filter(
-                user=user,
-                role__in=STAFF_ROLES,
-            ).exists()
-
-            if not is_staff:
-                data["answer"] = None
-
+        if not self._sees_answers():
+            data["answer"] = None
         return data
 
 

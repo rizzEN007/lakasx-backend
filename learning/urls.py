@@ -3,11 +3,10 @@ from rest_framework.routers import DefaultRouter
 
 
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
+       TokenRefreshView,
 )
 
-from .auth_views import RegisterView, MeView
+from .auth_views import RegisterView, MeView, LoginView
 
 from .views import(
     StudentViewSet, 
@@ -41,7 +40,7 @@ urlpatterns = [
     path("auth/register/", RegisterView.as_view(), name="register"),
     path(
         "auth/login/",
-        TokenObtainPairView.as_view(),
+        LoginView.as_view(),
         name="token_obtain_pair",
     ),
     path(
