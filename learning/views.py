@@ -1,10 +1,13 @@
-from rest_framework import viewsets, mixins
+from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .access import (
+    AdminOnlyDeleteMixin,
     IsPlatformSuperuserOrReadOnly,
+    IsSchoolMember,
+    IsSchoolStaff,
     filter_to_user_schools,
 )
 from .services.placement import analyze_placement
@@ -29,18 +32,23 @@ from .serializers import (
     PlacementAttemptSerializer,
 )
 
+
 class AppendOnlyViewSet(
     mixins.CreateModelMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
 ):
-    """Attempts are a record of what happened: create and read only.""" 
+    """Attempts are a record of what happened: create and read only."""
 
-class StudentViewSet(viewsets.ModelViewSet):
+
+class StudentViewSet(AdminOnlyDeleteMixin, viewsets.ModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsSchoolStaff]
+
+    def school_id_of(self, instance):
+        return instance.school_id
 
     def get_queryset(self):
         return filter_to_user_schools(
@@ -55,6 +63,7 @@ class LevelViewSet(viewsets.ModelViewSet):
     serializer_class = LevelSerializer
     permission_classes = [
         IsAuthenticated,
+        IsSchoolMember,
         IsPlatformSuperuserOrReadOnly,
     ]
 
@@ -64,6 +73,7 @@ class TopicViewSet(viewsets.ModelViewSet):
     serializer_class = TopicSerializer
     permission_classes = [
         IsAuthenticated,
+        IsSchoolMember,
         IsPlatformSuperuserOrReadOnly,
     ]
 
@@ -73,14 +83,18 @@ class QuestionViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSerializer
     permission_classes = [
         IsAuthenticated,
+        IsSchoolStaff,
         IsPlatformSuperuserOrReadOnly,
     ]
 
 
-class PracticeSessionViewSet(viewsets.ModelViewSet):
+class PracticeSessionViewSet(AdminOnlyDeleteMixin, viewsets.ModelViewSet):
     queryset = PracticeSession.objects.all()
     serializer_class = PracticeSessionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsSchoolStaff]
+
+    def school_id_of(self, instance):
+        return instance.student.school_id
 
     def get_queryset(self):
         return filter_to_user_schools(
@@ -93,7 +107,7 @@ class PracticeSessionViewSet(viewsets.ModelViewSet):
 class QuestionAttemptViewSet(AppendOnlyViewSet):
     queryset = QuestionAttempt.objects.all()
     serializer_class = QuestionAttemptSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsSchoolStaff]
 
     def get_queryset(self):
         return filter_to_user_schools(
@@ -103,10 +117,13 @@ class QuestionAttemptViewSet(AppendOnlyViewSet):
         )
 
 
-class PlacementAssessmentViewSet(AppendOnlyViewSet):
+class PlacementAssessmentViewSet(AdminOnlyDeleteMixin, viewsets.ModelViewSet):
     queryset = PlacementAssessment.objects.all()
     serializer_class = PlacementAssessmentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsSchoolStaff]
+
+    def school_id_of(self, instance):
+        return instance.student.school_id
 
     def get_queryset(self):
         return filter_to_user_schools(
@@ -125,7 +142,7 @@ class PlacementAssessmentViewSet(AppendOnlyViewSet):
 class PlacementAttemptViewSet(AppendOnlyViewSet):
     queryset = PlacementAttempt.objects.all()
     serializer_class = PlacementAttemptSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsSchoolStaff]
 
     def get_queryset(self):
         return filter_to_user_schools(

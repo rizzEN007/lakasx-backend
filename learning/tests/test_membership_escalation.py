@@ -20,21 +20,6 @@ def membership_of(user, school):
     return SchoolMembership.objects.filter(user=user, school=school)
 
 
-@pytest.fixture
-def admin_a(make_user, school_a):
-    return make_user("admin_a", school_a, Role.ADMIN)
-
-
-@pytest.fixture
-def superuser(db):
-    return User.objects.create_superuser("root", "root@example.com", "pass12345!")
-
-
-@pytest.fixture
-def outsider(make_user):
-    return make_user("outsider")  # registered, belongs to no school
-
-
 def test_members_endpoints_require_authentication(client_for, school_a):
     assert client_for().get(members_url(school_a)).status_code == 401
 

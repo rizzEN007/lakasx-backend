@@ -8,6 +8,19 @@ from learning.models import School, SchoolMembership, Student
 User = get_user_model()
 Role = SchoolMembership.Role
 
+@pytest.fixture
+def admin_a(make_user, school_a):
+    return make_user("admin_a", school_a, Role.ADMIN)
+
+
+@pytest.fixture
+def superuser(db):
+    return User.objects.create_superuser("root", "root@example.com", "pass12345!")
+
+
+@pytest.fixture
+def outsider(make_user):
+    return make_user("outsider")  # registered, belongs to no school
 
 @pytest.fixture(autouse=True)
 def _clear_throttle_cache():
