@@ -1,6 +1,13 @@
 import pytest
 
-from learning.models import PlacementAttempt, PlacementAssessment, PracticeSession, SchoolMembership, Student,Question, QuestionAttempt
+from learning.models import (
+    PlacementAttempt,
+    PlacementAssessment, 
+    PracticeSession, 
+    SchoolMembership, 
+    Student,Question, 
+    QuestionAttempt,
+)
 
 pytestmark = pytest.mark.django_db
 Role = SchoolMembership.Role

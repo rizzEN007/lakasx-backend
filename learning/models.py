@@ -10,6 +10,13 @@ class Student(models.Model):
         on_delete=models.PROTECT,
         related_name="students",
     )
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="student_profile",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

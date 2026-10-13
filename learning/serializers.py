@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.contrib.auth import get_user_model
 
 from .access import can_access_school, STAFF_ROLES
 from .models import (
@@ -13,6 +14,7 @@ from .models import (
     SchoolMembership,
 )
 
+User = get_user_model()
 
 class SchoolScopedSerializerMixin:
     def can_access_school(self, school_id):
@@ -30,8 +32,8 @@ class StudentSerializer(
 ):
     class Meta:
         model = Student
-        fields = ["id", "name", "email", "school", "created_at"]
-        read_only_fields = ["id", "created_at"]
+        fields = ["id", "name", "email", "school","created_at"]
+        read_only_fields = ["id", "created_at", "user"]
 
     def validate_school(self, school):
         if not self.can_access_school(school.pk):
@@ -197,3 +199,28 @@ class PlacementAttemptSerializer(
             **validated_data,
             is_correct=is_correct,
         )
+    
+class LinkStudentUserSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate(self, attrs):
+        student = self.context["student"]
+        user = User.objects.filter(email__iexact=attrs["email"]).first()
+
+        is_valid = (
+            user is not None
+            and SchoolMembership.objects.filter(
+                user=user,
+                school_id=student.school_id,
+                role=SchoolMembership.Role.STUDENT,
+            ).exists()
+            and not Student.objects.filter(user=user).exclude(pk=student.pk).exists()
+        )
+        if not is_valid:
+            # One message for every failure, so account existence isn't revealed.
+            raise serializers.ValidationError(
+                {"email": "This login cannot be linked to this student."}
+            )
+
+        attrs["user"] = user
+        return attrs

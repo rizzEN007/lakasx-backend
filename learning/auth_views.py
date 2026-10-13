@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from .access import linked_student
 from .serializers_auth import RegisterSerializer
 
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -26,10 +26,13 @@ class MeView(APIView):
             "school"
         ).all()
 
+        student = linked_student(request.user)
+
         return Response({
             "id": request.user.id,
             "username": request.user.username,
             "email": request.user.email,
+            "student_id": student.id if student else None,
             "memberships": [
                 {
                     "school_id": membership.school_id,
