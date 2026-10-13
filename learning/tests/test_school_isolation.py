@@ -160,4 +160,22 @@ def test_analyze_handles_question_without_level(client_for, teacher_a, student_a
         assessment=assessment, question=q, answer_given="yes", is_correct=True
     )
     res = client_for(teacher_a).get(ANALYZE.format(assessment.id))
-    assert res.status_code == 200    
+    assert res.status_code == 200   
+
+def test_duplicate_placement_attempt_rejected(client_for, teacher_a, student_a):
+    q = Question.objects.create(text="2 + 2?", answer="4")
+    assessment = PlacementAssessment.objects.create(student=student_a)
+    body = {"assessment": assessment.id, "question": q.id, "answer_given": "4"}
+    client = client_for(teacher_a)
+    assert client.post("/api/placement-attempts/", body, format="json").status_code == 201
+    assert client.post("/api/placement-attempts/", body, format="json").status_code == 400
+
+def test_analyze_assessment_with_no_attempts(client_for, teacher_a, student_a):
+    assessment = PlacementAssessment.objects.create(student=student_a)
+    res = client_for(teacher_a).get(ANALYZE.format(assessment.id))
+    assert res.status_code == 200
+    body = res.json()
+    assert body["total_questions"] == 0
+    assert body["score_percentage"] == 0
+    assert body["topic_performance"] == {}
+    assert body["level_performance"] == {}    

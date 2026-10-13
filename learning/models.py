@@ -124,6 +124,14 @@ class PlacementAttempt(models.Model):
     attempted_at = models.DateTimeField(auto_now_add=True)
     is_correct = models.BooleanField(default=False)
 
+    class Meta:
+            constraints = [
+                models.UniqueConstraint(
+                    fields=["assessment", "question"],
+                    name="unique_placement_attempt_per_question",
+                ),
+            ]
+
     def __str__(self):
         return f"{self.question.text} - {self.is_correct}"
 
@@ -164,7 +172,7 @@ class SchoolMembership(models.Model):
             models.UniqueConstraint(
                 fields=["school", "user"],
                 name="unique_user_membership_per_school",
-            )
+            ),
         ]
 
     def __str__(self):
@@ -197,7 +205,7 @@ class Classroom(models.Model):
             models.UniqueConstraint(
                 fields=["school", "name", "academic_year"],
                 name="unique_classroom_per_school_year",
-            )
+            ),
         ]
 
     def __str__(self):
