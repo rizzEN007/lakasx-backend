@@ -27,7 +27,11 @@ def school_b(db):
 @pytest.fixture
 def make_user(db):
     def _make(username, school=None, role=None):
-        user = User.objects.create_user(username=username, password="pass12345!")
+        user = User.objects.create_user(
+            username=username,
+            email=f"{username}@example.com",
+            password="pass12345!"
+        )
         if school and role:
             SchoolMembership.objects.create(school=school, user=user, role=role)
         return user

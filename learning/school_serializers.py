@@ -8,23 +8,13 @@ User = get_user_model()
 
 
 class AddSchoolMemberSerializer(serializers.Serializer):
-    user_id = serializers.IntegerField()
-    role = serializers.ChoiceField(
-        choices=SchoolMembership.Role.choices
-    )
-
-    def validate_user_id(self, value):
-        if not User.objects.filter(pk=value).exists():
-            raise serializers.ValidationError(
-                "No user exists with this ID."
-            )
-        return value
+    email = serializers.EmailField()
+    role = serializers.ChoiceField(choices=SchoolMembership.Role.choices)
 
     def validate(self, attrs):
         request = self.context["request"]
         school = self.context["school"]
 
-        # Only a Django superuser can assign the ADMIN role.
         if (
             attrs["role"] == SchoolMembership.Role.ADMIN
             and not request.user.is_superuser
@@ -34,12 +24,13 @@ class AddSchoolMemberSerializer(serializers.Serializer):
                         "the school administrator role."
             })
 
-        if SchoolMembership.objects.filter(
-            school=school,
-            user_id=attrs["user_id"],
+        user = User.objects.filter(email__iexact=attrs["email"]).first()
+        if user is None or SchoolMembership.objects.filter(
+            school=school, user=user
         ).exists():
-            raise serializers.ValidationError({
-                "user_id": "This user is already a member of this school."
-            })
+            raise serializers.ValidationError(
+                {"email": "This user cannot be added to the school."}
+            )
 
+        attrs["user"] = user
         return attrs

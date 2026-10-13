@@ -1,7 +1,14 @@
 import pytest
 
-from learning.models import PracticeSession, Question, SchoolMembership, Student ,Level, PlacementAssessment, PlacementAttempt
-
+from learning.models import (
+    PracticeSession, 
+    Question, 
+    SchoolMembership, 
+    Student,
+    Level, 
+    PlacementAssessment, 
+    PlacementAttempt,
+)
 
 pytestmark = pytest.mark.django_db
 STUDENTS = "/api/students/"

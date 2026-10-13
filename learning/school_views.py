@@ -120,9 +120,7 @@ class SchoolMemberListCreateView(APIView):
             with transaction.atomic():
                 membership = SchoolMembership.objects.create(
                     school=school,
-                    user=User.objects.get(
-                        pk=serializer.validated_data["user_id"]
-                    ),
+                    user=serializer.validated_data["user"],
                     role=serializer.validated_data["role"],
                 )
         except IntegrityError:
@@ -132,7 +130,12 @@ class SchoolMemberListCreateView(APIView):
             )
 
         return Response(
-            membership_data(membership),
+            {
+                "id": membership.id,
+                "school_id": school.id,
+                "role": membership.role,
+                "created_at": membership.created_at,
+            },
             status=status.HTTP_201_CREATED,
         )
 
