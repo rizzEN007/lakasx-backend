@@ -27,6 +27,9 @@ class Student(models.Model):
         validators=GRADE_VALIDATORS,
     )
     total_xp = models.PositiveIntegerField(default=0)
+    streak_count = models.PositiveIntegerField(default=0)
+    longest_streak = models.PositiveIntegerField(default=0)
+    last_goal_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -284,4 +287,26 @@ class XPEvent(models.Model):
 
     def __str__(self):
         return f"{self.student.name} +{self.amount} ({self.reason})"
+
+class DailyActivity(models.Model):
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="daily_activity",
+    )
+    date = models.DateField()
+    questions_answered = models.PositiveIntegerField(default=0)
+    xp_earned = models.PositiveIntegerField(default=0)
+    goal_met = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "date"],
+                name="unique_daily_activity_per_student_day",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.student.name} {self.date}"
     

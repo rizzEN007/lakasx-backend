@@ -4,6 +4,9 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from .services.streaks import streak_status
+from .services.xp import xp_progress
+
 from django.conf import settings
 
 from .access import (
@@ -272,3 +275,18 @@ class PracticeViewSet(viewsets.ViewSet):
         except PracticeError as error:
             return self._conflict(error)
         return Response(session_results(session))
+
+    @action(detail=False, methods=["get"])
+    def progress(self, request):
+        """A student's home screen: grade, XP, level and streak."""
+        student = linked_student(request.user)
+        xp = xp_progress(student.total_xp)
+        return Response(
+            {
+                "grade": student.grade,
+                "total_xp": student.total_xp,
+                "level": xp["level"],
+                "xp_to_next_level": xp["xp_to_next_level"],
+                "streak": streak_status(student),
+            }
+        )

@@ -1,6 +1,8 @@
 import random
 from datetime import timedelta
 
+from .streaks import record_activity, streak_status
+
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import F, Sum
@@ -181,6 +183,8 @@ def submit_answer(student, answer_given):
             xp_earned += _award(student, XPEvent.Reason.SESSION_COMPLETE, session)
             session.ended_at = now
 
+        streak_extended = record_activity(student, xp_earned)
+
         session.current_question = None
         session.served_at = None
         session.last_activity_at = now
@@ -201,6 +205,8 @@ def submit_answer(student, answer_given):
         "answered": answered,
         "session_length": settings.PRACTICE_SESSION_LENGTH,
         "session_complete": complete,
+        "streak": streak_status(student),
+        "streak_extended": streak_extended,
     }
 
 

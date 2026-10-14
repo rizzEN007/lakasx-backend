@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
 from .services.xp import xp_progress
+from .services.streaks import effective_streak
 
 from .access import can_access_school, STAFF_ROLES
 from .models import (
@@ -34,20 +35,25 @@ class StudentSerializer(
 ):
     level = serializers.SerializerMethodField()
     xp_to_next_level = serializers.SerializerMethodField()
+    current_streak = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
         fields = [
             "id", "name", "email", "school", "user", "grade",
-            "total_xp", "level", "xp_to_next_level", "created_at",
+            "total_xp", "level", "xp_to_next_level",
+            "current_streak", "longest_streak", "created_at",
         ]
-        read_only_fields = ["id", "created_at", "user", "total_xp"]
+        read_only_fields = ["id", "created_at", "user", "total_xp", "longest_streak"]
 
     def get_level(self, student):
         return xp_progress(student.total_xp)["level"]
 
     def get_xp_to_next_level(self, student):
         return xp_progress(student.total_xp)["xp_to_next_level"]
+
+    def get_current_streak(self, student):
+        return effective_streak(student)
 
     def validate_school(self, school):
         if not self.can_access_school(school.pk):
