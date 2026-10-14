@@ -35,14 +35,23 @@ def test_staff_can_set_grade(client_for, teacher_a, student_a):
     assert student_a.grade == 4
 
 
-@pytest.mark.parametrize("bad", [0, 13, -1])
-def test_grade_must_be_between_1_and_12(client_for, teacher_a, student_a, bad):
+@pytest.mark.parametrize("bad", [13, -1])
+def test_grade_must_be_between_kindergarten_and_12(client_for, teacher_a, student_a, bad):
     res = client_for(teacher_a).patch(
         f"{STUDENTS}{student_a.id}/", {"grade": bad}, format="json"
     )
     assert res.status_code == 400
     student_a.refresh_from_db()
     assert student_a.grade is None
+
+
+def test_kindergarten_is_grade_zero(client_for, teacher_a, student_a):
+    res = client_for(teacher_a).patch(
+        f"{STUDENTS}{student_a.id}/", {"grade": 0}, format="json"
+    )
+    assert res.status_code == 200
+    student_a.refresh_from_db()
+    assert student_a.grade == 0
 
 
 def test_teacher_cannot_set_grade_in_another_school(client_for, teacher_a, student_b):

@@ -2,7 +2,8 @@ from django.db import models
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 
-GRADE_VALIDATORS = [MinValueValidator(1), MaxValueValidator(12)]
+# 0 = Kindergarten, 1-12 = Grade 1-12
+GRADE_VALIDATORS = [MinValueValidator(0), MaxValueValidator(12)]
 
 class Student(models.Model):
     name = models.CharField(max_length=100)
