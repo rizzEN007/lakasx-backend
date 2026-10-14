@@ -238,3 +238,15 @@ class LinkStudentUserSerializer(serializers.Serializer):
 
         attrs["user"] = user
         return attrs
+
+
+class PracticeQuestionSerializer(serializers.ModelSerializer):
+    """What a student sees. The answer is deliberately not a field."""
+
+    class Meta:
+        model = Question
+        fields = ["id", "text"]
+
+
+class PracticeAnswerSerializer(serializers.Serializer):
+    answer_given = serializers.CharField(max_length=500)

@@ -1,8 +1,10 @@
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from django.conf import settings
 
 from .access import (
     AdminOnlyDeleteMixin,
@@ -12,7 +14,12 @@ from .access import (
     IsStaffOrLinkedStudentReadOnly,
     filter_to_user_schools,
     is_school_admin,
+    linked_student,
+    IsLinkedStudent,
 )
+
+from .services import practice
+from .services.practice import PracticeError, session_results
 from .services.placement import analyze_placement
 from .models import (
     Student,
@@ -34,6 +41,8 @@ from .serializers import (
     PlacementAssessmentSerializer,
     PlacementAttemptSerializer,
     LinkStudentUserSerializer,
+    PracticeQuestionSerializer,
+    PracticeAnswerSerializer,   
 )
 
 
@@ -117,7 +126,13 @@ class QuestionViewSet(viewsets.ModelViewSet):
     ]
 
 
-class PracticeSessionViewSet(AdminOnlyDeleteMixin, viewsets.ModelViewSet):
+class PracticeSessionViewSet(
+    AdminOnlyDeleteMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
     queryset = PracticeSession.objects.all()
     serializer_class = PracticeSessionSerializer
     permission_classes = [IsAuthenticated, IsStaffOrLinkedStudentReadOnly]
@@ -132,6 +147,10 @@ class PracticeSessionViewSet(AdminOnlyDeleteMixin, viewsets.ModelViewSet):
             "student__school_id",
             "student_id",
         )
+
+    @action(detail=True, methods=["get"])
+    def results(self, request, pk=None):
+        return Response(session_results(self.get_object()))
 
 
 class QuestionAttemptViewSet(AppendOnlyViewSet):
@@ -187,3 +206,69 @@ class PlacementAttemptViewSet(AppendOnlyViewSet):
             "assessment__student__school_id",
             "assessment__student_id",
         )
+
+class PracticeViewSet(viewsets.ViewSet):
+    """The student's practice loop. The server controls what is served and scored."""
+
+    permission_classes = [IsAuthenticated, IsLinkedStudent]
+
+    @staticmethod
+    def _conflict(error):
+        return Response(
+            {"code": error.code, "detail": error.message},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    @action(detail=False, methods=["post"])
+    def start(self, request):
+        student = linked_student(request.user)
+        try:
+            session, created = practice.start_session(student)
+        except PracticeError as error:
+            return self._conflict(error)
+        return Response(
+            {
+                "session_id": session.pk,
+                "started_at": session.started_at,
+                "session_length": settings.PRACTICE_SESSION_LENGTH,
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=["post"], url_path="next-question")
+    def next_question(self, request):
+        student = linked_student(request.user)
+        try:
+            session, question = practice.next_question(student)
+        except PracticeError as error:
+            return self._conflict(error)
+        return Response(
+            {
+                "session_id": session.pk,
+                "question_number": session.question_attempts.count() + 1,
+                "session_length": settings.PRACTICE_SESSION_LENGTH,
+                "question": PracticeQuestionSerializer(question).data,
+            }
+        )
+
+    @action(detail=False, methods=["post"])
+    def answer(self, request):
+        serializer = PracticeAnswerSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        student = linked_student(request.user)
+        try:
+            result = practice.submit_answer(
+                student, serializer.validated_data["answer_given"]
+            )
+        except PracticeError as error:
+            return self._conflict(error)
+        return Response(result)
+
+    @action(detail=False, methods=["post"])
+    def end(self, request):
+        student = linked_student(request.user)
+        try:
+            session = practice.end_session(student)
+        except PracticeError as error:
+            return self._conflict(error)
+        return Response(session_results(session))

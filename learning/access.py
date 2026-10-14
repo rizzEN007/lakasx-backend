@@ -134,3 +134,9 @@ class IsStaffOrLinkedStudentReadOnly(BasePermission):
         ).exists():
             return True
         return request.method in SAFE_METHODS and linked_student(user) is not None
+
+class IsLinkedStudent(BasePermission):
+    message = "Only a student account can practice."
+
+    def has_permission(self, request, view):
+        return linked_student(request.user) is not None

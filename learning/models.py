@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.utils import timezone
 
 # 0 = Kindergarten, 1-12 = Grade 1-12
 GRADE_VALIDATORS = [MinValueValidator(0), MaxValueValidator(12)]
@@ -61,6 +62,24 @@ class PracticeSession(models.Model):
         )
     started_at = models.DateTimeField(auto_now_add=True)
     ended_at = models.DateTimeField(null=True, blank=True)
+    last_activity_at = models.DateTimeField(default=timezone.now)
+    current_question = models.ForeignKey(
+        "Question",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    served_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student"],
+                condition=models.Q(ended_at__isnull=True),
+                name="one_open_session_per_student",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.student.name} - {self.started_at}"
@@ -88,6 +107,7 @@ class Question(models.Model):
         blank=True,
         validators=GRADE_VALIDATORS,
     )
+    
 
     class Meta:
         indexes = [models.Index(fields=["grade", "topic"])]
@@ -109,6 +129,8 @@ class QuestionAttempt(models.Model):
     answer_given = models.TextField()
     attempted_at = models.DateTimeField(auto_now_add=True)
     is_correct = models.BooleanField(default=False)
+    time_taken_seconds = models.PositiveIntegerField(null=True, blank=True)
+    is_first_try = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.question.text} - {self.is_correct}"
