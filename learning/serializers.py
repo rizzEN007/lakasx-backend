@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
+from .services.xp import xp_progress
+
 from .access import can_access_school, STAFF_ROLES
 from .models import (
     PlacementAssessment,
@@ -30,10 +32,22 @@ class StudentSerializer(
     SchoolScopedSerializerMixin,
     serializers.ModelSerializer,
 ):
+    level = serializers.SerializerMethodField()
+    xp_to_next_level = serializers.SerializerMethodField()
+
     class Meta:
         model = Student
-        fields = ["id", "name", "email", "school","created_at"]
-        read_only_fields = ["id", "created_at", "user"]
+        fields = [
+            "id", "name", "email", "school", "user", "grade",
+            "total_xp", "level", "xp_to_next_level", "created_at",
+        ]
+        read_only_fields = ["id", "created_at", "user", "total_xp"]
+
+    def get_level(self, student):
+        return xp_progress(student.total_xp)["level"]
+
+    def get_xp_to_next_level(self, student):
+        return xp_progress(student.total_xp)["xp_to_next_level"]
 
     def validate_school(self, school):
         if not self.can_access_school(school.pk):

@@ -158,3 +158,6 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+# XP needed to reach each level: level N starts at XP_LEVEL_THRESHOLDS[N-1].
+XP_LEVEL_THRESHOLDS = [0, 100, 250, 500, 900, 1400, 2000, 2700, 3500, 4400]
