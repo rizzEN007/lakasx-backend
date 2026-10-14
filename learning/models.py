@@ -199,6 +199,7 @@ class SchoolMembership(models.Model):
         ADMIN = "ADMIN", "School Administrator"
         TEACHER = "TEACHER", "Teacher"
         STUDENT = "STUDENT", "Student"
+        PARENT = "PARENT", "Parent"
 
     school = models.ForeignKey(
         School,
@@ -309,4 +310,43 @@ class DailyActivity(models.Model):
 
     def __str__(self):
         return f"{self.student.name} {self.date}"
+
+class GuardianLink(models.Model):
+    class Relationship(models.TextChoices):
+        PRIMARY = "PRIMARY", "Primary guardian"
+        SECONDARY = "SECONDARY", "Secondary guardian (view-only)"
+
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="guardian_links",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="guardian_links",
+    )
+    relationship = models.CharField(max_length=10, choices=Relationship.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "user"],
+                name="unique_guardian_per_student",
+            ),
+            models.UniqueConstraint(
+                fields=["student"],
+                condition=models.Q(relationship="PRIMARY"),
+                name="one_primary_guardian_per_student",
+            ),
+            models.UniqueConstraint(
+                fields=["student"],
+                condition=models.Q(relationship="SECONDARY"),
+                name="one_secondary_guardian_per_student",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user} → {self.student.name} ({self.relationship})"
     

@@ -9,6 +9,7 @@ from rest_framework_simplejwt.views import (
 from .auth_views import RegisterView, MeView, LoginView
 
 from .views import(
+    ParentChildViewSet,
     PracticeViewSet,
     StudentViewSet, 
     PracticeSessionViewSet, 
@@ -37,6 +38,7 @@ router.register("question-attempts", QuestionAttemptViewSet)
 router.register("placement-assessments", PlacementAssessmentViewSet)
 router.register("placement-attempts", PlacementAttemptViewSet)
 router.register("practice", PracticeViewSet, basename="practice")
+router.register("parent/children", ParentChildViewSet, basename="parent-child")
 
 urlpatterns = [
     path(

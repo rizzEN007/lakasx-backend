@@ -1,28 +1,30 @@
 from rest_framework import mixins, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 
 from .services.streaks import streak_status
 from .services.xp import xp_progress
 
-from django.conf import settings
+from django.db import IntegrityError
+from django.shortcuts import get_object_or_404
 
 from .access import (
     AdminOnlyDeleteMixin,
+    IsLinkedStudent,
+    IsParentGuardian,
     IsPlatformSuperuserOrReadOnly,
     IsSchoolMember,
     IsSchoolStaff,
-    IsStaffOrLinkedStudentReadOnly,
+    IsStaffOrFamilyReadOnly,
     filter_to_user_schools,
+    guardian_links,
     is_school_admin,
     linked_student,
-    IsLinkedStudent,
 )
-
-from .services import practice
-from .services.practice import PracticeError, session_results
+from .services import practice, reports 
+from .services.practice import PracticeError, session_results, settings
 from .services.placement import analyze_placement
 from .models import (
     Student,
@@ -33,6 +35,7 @@ from .models import (
     QuestionAttempt,
     PlacementAssessment,
     PlacementAttempt,
+    GuardianLink,
 )
 from .serializers import (
     QuestionSerializer,
@@ -45,7 +48,8 @@ from .serializers import (
     PlacementAttemptSerializer,
     LinkStudentUserSerializer,
     PracticeQuestionSerializer,
-    PracticeAnswerSerializer,   
+    PracticeAnswerSerializer,  
+    AddGuardianSerializer,
 )
 
 
@@ -57,11 +61,19 @@ class AppendOnlyViewSet(
 ):
     """Attempts are a record of what happened: create and read only."""
 
+def guardian_data(link):
+    return {
+        "id": link.id,
+        "user_id": link.user_id,
+        "email": link.user.email,
+        "relationship": link.relationship,
+        "created_at": link.created_at,
+    }
 
 class StudentViewSet(AdminOnlyDeleteMixin, viewsets.ModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
-    permission_classes = [IsAuthenticated, IsStaffOrLinkedStudentReadOnly]
+    permission_classes = [IsAuthenticated, IsStaffOrFamilyReadOnly]
 
     def school_id_of(self, instance):
         return instance.school_id
@@ -72,6 +84,7 @@ class StudentViewSet(AdminOnlyDeleteMixin, viewsets.ModelViewSet):
             self.request.user,
             "school_id",
             "pk",
+            include_family=self.request.method in SAFE_METHODS,
         )
 
     def _require_admin(self, student):
@@ -97,6 +110,47 @@ class StudentViewSet(AdminOnlyDeleteMixin, viewsets.ModelViewSet):
         student.user = None
         student.save(update_fields=["user"])
         return Response(self.get_serializer(student).data)
+
+    @action(detail=True, methods=["get"], url_path="guardians")
+
+    def guardians(self, request, pk=None):
+        student = self.get_object()
+        self._require_admin(student)
+        links = student.guardian_links.select_related("user").order_by("id")
+        return Response([guardian_data(link) for link in links])
+
+    @guardians.mapping.post
+    def add_guardian(self, request, pk=None):
+        student = self.get_object()
+        self._require_admin(student)
+        serializer = AddGuardianSerializer(
+            data=request.data, context={"student": student}
+        )
+        serializer.is_valid(raise_exception=True)
+        try:
+            link = GuardianLink.objects.create(
+                student=student,
+                user=serializer.validated_data["user"],
+                relationship=serializer.validated_data["relationship"],
+            )
+        except IntegrityError:
+            return Response(
+                {"detail": "This guardian could not be added."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(guardian_data(link), status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path=r"guardians/(?P<link_id>[0-9]+)",
+    )
+    def remove_guardian(self, request, pk=None, link_id=None):
+        student = self.get_object()
+        self._require_admin(student)
+        link = get_object_or_404(GuardianLink, pk=link_id, student=student)
+        link.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class LevelViewSet(viewsets.ModelViewSet):
@@ -138,7 +192,7 @@ class PracticeSessionViewSet(
 ):
     queryset = PracticeSession.objects.all()
     serializer_class = PracticeSessionSerializer
-    permission_classes = [IsAuthenticated, IsStaffOrLinkedStudentReadOnly]
+    permission_classes = [IsAuthenticated, IsStaffOrFamilyReadOnly]
 
     def school_id_of(self, instance):
         return instance.student.school_id
@@ -149,6 +203,7 @@ class PracticeSessionViewSet(
             self.request.user,
             "student__school_id",
             "student_id",
+            include_family=self.request.method in SAFE_METHODS,
         )
 
     @action(detail=True, methods=["get"])
@@ -159,21 +214,22 @@ class PracticeSessionViewSet(
 class QuestionAttemptViewSet(AppendOnlyViewSet):
     queryset = QuestionAttempt.objects.all()
     serializer_class = QuestionAttemptSerializer
-    permission_classes = [IsAuthenticated, IsStaffOrLinkedStudentReadOnly]
+    permission_classes = [IsAuthenticated, IsStaffOrFamilyReadOnly]
 
     def get_queryset(self):
         return filter_to_user_schools(
             super().get_queryset(),
             self.request.user,
             "practice_session__student__school_id",
-            "practice_session__student_id",
+            "practice_session__student_id",            
+            include_family=self.request.method in SAFE_METHODS,
         )
 
 
 class PlacementAssessmentViewSet(AdminOnlyDeleteMixin, viewsets.ModelViewSet):
     queryset = PlacementAssessment.objects.all()
     serializer_class = PlacementAssessmentSerializer
-    permission_classes = [IsAuthenticated, IsStaffOrLinkedStudentReadOnly]
+    permission_classes = [IsAuthenticated, IsStaffOrFamilyReadOnly]
 
     def school_id_of(self, instance):
         return instance.student.school_id
@@ -183,7 +239,8 @@ class PlacementAssessmentViewSet(AdminOnlyDeleteMixin, viewsets.ModelViewSet):
             super().get_queryset(),
             self.request.user,
             "student__school_id",
-            "student_id",
+            "student_id",           
+            include_family=self.request.method in SAFE_METHODS,
         )
 
     @action(
@@ -200,14 +257,15 @@ class PlacementAssessmentViewSet(AdminOnlyDeleteMixin, viewsets.ModelViewSet):
 class PlacementAttemptViewSet(AppendOnlyViewSet):
     queryset = PlacementAttempt.objects.all()
     serializer_class = PlacementAttemptSerializer
-    permission_classes = [IsAuthenticated, IsStaffOrLinkedStudentReadOnly]
+    permission_classes = [IsAuthenticated, IsStaffOrFamilyReadOnly]
 
     def get_queryset(self):
         return filter_to_user_schools(
             super().get_queryset(),
             self.request.user,
             "assessment__student__school_id",
-            "assessment__student_id",
+            "assessment__student_id",            
+            include_family=self.request.method in SAFE_METHODS,
         )
 
 class PracticeViewSet(viewsets.ViewSet):
@@ -290,3 +348,27 @@ class PracticeViewSet(viewsets.ViewSet):
                 "streak": streak_status(student),
             }
         )
+
+class ParentChildViewSet(viewsets.ViewSet):
+    """A parent's view of their own children. Read-only."""
+
+    permission_classes = [IsAuthenticated, IsParentGuardian]
+    lookup_value_regex = "[0-9]+"
+
+    def _links(self, request):
+        return guardian_links(request.user)
+
+    def list(self, request):
+        links = self._links(request).order_by("student__name")
+        return Response(
+            [reports.child_summary(l.student, l.relationship) for l in links]
+        )
+
+    def retrieve(self, request, pk=None):
+        link = get_object_or_404(self._links(request), student_id=pk)
+        return Response(reports.child_summary(link.student, link.relationship))
+
+    @action(detail=True, methods=["get"], url_path="weekly-summary")
+    def weekly_summary(self, request, pk=None):
+        link = get_object_or_404(self._links(request), student_id=pk)
+        return Response(reports.weekly_summary(link.student))

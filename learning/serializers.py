@@ -15,6 +15,7 @@ from .models import (
     Level,
     Topic,
     SchoolMembership,
+    GuardianLink,
 )
 
 User = get_user_model()
@@ -256,3 +257,46 @@ class PracticeQuestionSerializer(serializers.ModelSerializer):
 
 class PracticeAnswerSerializer(serializers.Serializer):
     answer_given = serializers.CharField(max_length=500)
+
+class AddGuardianSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    relationship = serializers.ChoiceField(choices=GuardianLink.Relationship.choices)
+
+    def validate(self, attrs):
+        student = self.context["student"]
+
+        # Checked first and independent of the email, so it reveals nothing about accounts.
+        if GuardianLink.objects.filter(
+            student=student, relationship=attrs["relationship"]
+        ).exists():
+            raise serializers.ValidationError(
+                {"relationship": "This student already has a guardian in that role."}
+            )
+
+        user = User.objects.filter(email__iexact=attrs["email"]).first()
+        is_valid = (
+            user is not None
+            and user.pk != student.user_id
+            and SchoolMembership.objects.filter(
+                user=user,
+                school_id=student.school_id,
+                role=SchoolMembership.Role.PARENT,
+            ).exists()
+            and not GuardianLink.objects.filter(student=student, user=user).exists()
+        )
+        if not is_valid:
+            # One message for every failure, so account existence isn't revealed.
+            raise serializers.ValidationError(
+                {"email": "This login cannot be linked as a guardian of this student."}
+            )
+
+        attrs["user"] = user
+        return attrs
+
+class GuardianLinkSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = GuardianLink
+        fields = ["id", "user", "email", "relationship", "created_at"]
+        read_only_fields = fields
