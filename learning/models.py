@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 
+GRADE_VALIDATORS = [MinValueValidator(1), MaxValueValidator(12)]
 
 class Student(models.Model):
     name = models.CharField(max_length=100)
@@ -17,6 +19,12 @@ class Student(models.Model):
         on_delete=models.SET_NULL,
         related_name="student_profile",
     )
+    grade = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=GRADE_VALIDATORS,
+    )
+    total_xp = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -74,6 +82,14 @@ class Question(models.Model):
     text = models.TextField()
     answer = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    grade = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=GRADE_VALIDATORS,
+    )
+
+    class Meta:
+        indexes = [models.Index(fields=["grade", "topic"])]
 
     def __str__(self):
         return self.text
@@ -217,4 +233,32 @@ class Classroom(models.Model):
 
     def __str__(self):
         return f"{self.school.name} — {self.name}" 
+
+class XPEvent(models.Model):
+    class Reason(models.TextChoices):
+        CORRECT_ANSWER = "CORRECT_ANSWER", "Correct answer"
+        FIRST_TRY_BONUS = "FIRST_TRY_BONUS", "First-try bonus"
+        SESSION_COMPLETE = "SESSION_COMPLETE", "Session completed"
+
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="xp_events",
+    )
+    amount = models.PositiveIntegerField()
+    reason = models.CharField(max_length=20, choices=Reason.choices)
+    practice_session = models.ForeignKey(
+        PracticeSession,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="xp_events",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["student", "created_at"])]
+
+    def __str__(self):
+        return f"{self.student.name} +{self.amount} ({self.reason})"
     
