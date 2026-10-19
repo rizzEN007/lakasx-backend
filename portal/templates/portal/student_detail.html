@@ -1,0 +1,37 @@
+{% extends "portal/base.html" %}
+{% block content %}
+  <p><a href="{% url 'portal:students' %}">&larr; Students</a></p>
+  <h1>{{ student.name }}</h1>
+  <div class="card">
+    <table>
+      <tr><th>Email</th><td>{{ student.email }}</td></tr>
+      <tr><th>School</th><td>{{ student.school.name }}</td></tr>
+      <tr><th>Login account</th><td>{% if student.user %}{{ student.user.get_username }}{% else %}<span class="muted">none</span>{% endif %}</td></tr>
+      <tr><th>Created</th><td>{{ student.created_at|date:"Y-m-d" }}</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0;font-size:16px">Guardians</h2>
+    <table>
+      {% for g in guardians %}
+        <tr><td>{{ g.user.get_username }}</td><td>{{ g.get_relationship_display }}</td></tr>
+      {% empty %}
+        <tr><td class="muted">No guardians linked.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0;font-size:16px">Recent practice sessions</h2>
+    <table>
+      <tr><th>Started</th><th>Ended</th></tr>
+      {% for s in sessions %}
+        <tr>
+          <td>{{ s.started_at|date:"Y-m-d H:i" }}</td>
+          <td>{% if s.ended_at %}{{ s.ended_at|date:"Y-m-d H:i" }}{% else %}<span class="muted">in progress</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="2" class="muted">No sessions yet.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endblock %}

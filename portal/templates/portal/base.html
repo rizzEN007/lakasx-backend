@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}LakasX Portal{% endblock %}</title>
+  <style>
+    :root { --bg:#f6f7f9; --card:#fff; --text:#1c2230; --muted:#667085; --line:#e4e7ec; --accent:#3b5bdb; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#14171f; --card:#1d212c; --text:#e8eaf0; --muted:#98a2b3; --line:#2c3242; --accent:#7c93ff; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); }
+    header { background:var(--card); border-bottom:1px solid var(--line); padding:0 20px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+    header .brand { font-weight:700; padding:14px 0; }
+    nav { display:flex; gap:4px; flex:1; flex-wrap:wrap; }
+    nav a { color:var(--muted); text-decoration:none; padding:14px 10px; }
+    nav a:hover, nav a.on { color:var(--accent); }
+    .who { color:var(--muted); font-size:14px; display:flex; align-items:center; gap:10px; }
+    main { max-width:1000px; margin:24px auto; padding:0 20px; }
+    h1 { font-size:22px; margin:0 0 16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; overflow-x:auto; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px; }
+    .stat b { display:block; font-size:26px; }
+    .stat span { color:var(--muted); font-size:13px; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
+    th { color:var(--muted); font-weight:600; }
+    a { color:var(--accent); }
+    input, select, button { font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--text); }
+    button, .btn { background:var(--accent); color:#fff; border:0; cursor:pointer; }
+    button.link { background:none; color:var(--muted); padding:0; }
+    .msg { padding:10px 14px; border-radius:8px; background:#e7f5ec; color:#14532d; margin-bottom:12px; }
+    .err { padding:10px 14px; border-radius:8px; background:#fde8e8; color:#7f1d1d; margin-bottom:12px; }
+    .muted { color:var(--muted); }
+    .filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+    .pager { display:flex; gap:12px; align-items:center; margin-top:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">LakasX Portal</span>
+    <nav>
+      <a href="{% url 'portal:dashboard' %}">Dashboard</a>
+      <a href="{% url 'portal:students' %}">Students</a>
+      <a href="{% url 'portal:classrooms' %}">Classrooms</a>
+      {% if request.user.is_superuser %}<a href="{% url 'portal:locked' %}">Locked accounts</a>{% endif %}
+    </nav>
+    <div class="who">
+      {{ request.user.get_username }}
+      <form method="post" action="{% url 'portal:logout' %}" style="margin:0">
+        {% csrf_token %}<button class="link" type="submit">Log out</button>
+      </form>
+    </div>
+  </header>
+  <main>
+    {% for m in messages %}<div class="msg">{{ m }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

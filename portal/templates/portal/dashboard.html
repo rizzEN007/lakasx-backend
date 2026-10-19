@@ -1,0 +1,25 @@
+{% extends "portal/base.html" %}
+{% block content %}
+  <h1>Dashboard</h1>
+  <div class="stats">
+    <div class="card stat"><b>{{ school_count }}</b><span>Schools</span></div>
+    <div class="card stat"><b>{{ student_count }}</b><span>Students</span></div>
+    <div class="card stat"><b>{{ classroom_count }}</b><span>Classrooms</span></div>
+    <div class="card stat"><b>{{ sessions_7d }}</b><span>Practice sessions, last 7 days</span></div>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0;font-size:16px">Recent practice sessions</h2>
+    <table>
+      <tr><th>Student</th><th>Started</th><th>Ended</th></tr>
+      {% for s in recent %}
+        <tr>
+          <td><a href="{% url 'portal:student_detail' s.student_id %}">{{ s.student.name }}</a></td>
+          <td>{{ s.started_at|date:"Y-m-d H:i" }}</td>
+          <td>{% if s.ended_at %}{{ s.ended_at|date:"Y-m-d H:i" }}{% else %}<span class="muted">in progress</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3" class="muted">No sessions yet.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endblock %}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log in - LakasX Portal</title>
+  <style>
+    :root { --bg:#f6f7f9; --card:#fff; --text:#1c2230; --line:#e4e7ec; --accent:#3b5bdb; }
+    @media (prefers-color-scheme: dark) { :root { --bg:#14171f; --card:#1d212c; --text:#e8eaf0; --line:#2c3242; --accent:#7c93ff; } }
+    body { margin:0; min-height:100vh; display:grid; place-items:center; font-family:system-ui,sans-serif; background:var(--bg); color:var(--text); }
+    form { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:28px; width:min(360px,92vw); }
+    h1 { font-size:20px; margin:0 0 18px; }
+    label { display:block; font-size:14px; margin:12px 0 4px; }
+    input[type=text], input[type=password] { width:100%; font:inherit; padding:10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--text); }
+    button { width:100%; margin-top:18px; font:inherit; padding:10px; border:0; border-radius:8px; background:var(--accent); color:#fff; cursor:pointer; }
+    .err { padding:10px 12px; border-radius:8px; background:#fde8e8; color:#7f1d1d; margin-bottom:8px; font-size:14px; }
+  </style>
+</head>
+<body>
+  <form method="post">
+    {% csrf_token %}
+    <h1>LakasX Portal</h1>
+    {% if locked_message %}<div class="err">{{ locked_message }}</div>{% endif %}
+    {% for e in form.non_field_errors %}<div class="err">{{ e }}</div>{% endfor %}
+    <label for="id_username">Username</label>
+    <input type="text" name="username" id="id_username" autofocus autocomplete="username" required>
+    <label for="id_password">Password</label>
+    <input type="password" name="password" id="id_password" autocomplete="current-password" required>
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit">Log in</button>
+  </form>
+</body>
+</html>

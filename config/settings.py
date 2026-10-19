@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "learning",
     "rest_framework_simplejwt.token_blacklist",
+    "portal",
 ]
 
 MIDDLEWARE = [
@@ -186,3 +187,8 @@ COIN_STREAK_MILESTONES = [7, 30]
 LOGIN_MAX_FAILURES = 5
 LOGIN_LOCK_MINUTES = 15
 LOGIN_FAILURE_WINDOW_MINUTES = 15
+
+LOGIN_URL = "portal:login"
+LOGIN_REDIRECT_URL = "portal:dashboard"
+SESSION_COOKIE_AGE = 60 * 60 * 2   # log out after 2 idle hours
+SESSION_SAVE_EVERY_REQUEST = True

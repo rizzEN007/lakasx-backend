@@ -1,0 +1,21 @@
+{% extends "portal/base.html" %}
+{% block content %}
+  <h1>Locked accounts</h1>
+  <div class="card">
+    <table>
+      <tr><th>Username</th><th>Failed attempts</th><th>Locked until</th><th></th></tr>
+      {% for a in locked %}
+        <tr>
+          <td>{{ a.identifier }}</td><td>{{ a.failed_count }}</td><td>{{ a.locked_until|date:"Y-m-d H:i" }}</td>
+          <td>
+            <form method="post" style="margin:0">{% csrf_token %}
+              <input type="hidden" name="id" value="{{ a.id }}"><button type="submit">Unlock</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="muted">Nothing is locked right now.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endblock %}
