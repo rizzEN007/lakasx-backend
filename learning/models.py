@@ -452,3 +452,15 @@ class StudentItem(models.Model):
 
     def __str__(self):
         return f"{self.student.name}: {self.item.name}"
+
+class LoginAttempt(models.Model):
+    """Failed-login counter per submitted username, including unknown usernames."""
+
+    identifier = models.CharField(max_length=150, unique=True)
+    failed_count = models.PositiveIntegerField(default=0)
+    window_started_at = models.DateTimeField(default=timezone.now)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.identifier}: {self.failed_count} failures"

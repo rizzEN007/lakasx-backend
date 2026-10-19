@@ -6,7 +6,7 @@ from rest_framework_simplejwt.views import (
        TokenRefreshView,
 )
 
-from .auth_views import RegisterView, MeView, LoginView
+from .auth_views import LogoutView, RegisterView, MeView, LoginView
 
 from .views import(
     ParentChildViewSet,
@@ -89,4 +89,9 @@ urlpatterns = [
         "", 
         include(router.urls)
     ),
+
+    path(
+        "auth/logout/", 
+        LogoutView.as_view(),
+        name="logout"),
 ]

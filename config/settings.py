@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     "rest_framework",
     "learning",
+    "rest_framework_simplejwt.token_blacklist",
 ]
 
 MIDDLEWARE = [
@@ -157,6 +158,7 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 # XP needed to reach each level: level N starts at XP_LEVEL_THRESHOLDS[N-1].
@@ -180,3 +182,7 @@ COIN_RULES = {
     "STREAK_MILESTONE": 50,
 }
 COIN_STREAK_MILESTONES = [7, 30]
+
+LOGIN_MAX_FAILURES = 5
+LOGIN_LOCK_MINUTES = 15
+LOGIN_FAILURE_WINDOW_MINUTES = 15

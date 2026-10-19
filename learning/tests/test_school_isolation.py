@@ -136,13 +136,13 @@ def test_login_is_throttled(client_for, make_user):
     codes = [
         client.post(
             "/api/auth/login/",
-            {"username": "someone", "password": "wrong"},
+            {"username": f"someone{i}", "password": "wrong"},
             format="json",
         ).status_code
-        for _ in range(31)
+        for i in range(31)
     ]
     assert codes[-1] == 429
-
+    
 def test_cannot_analyze_other_school_assessment(client_for, teacher_a, student_b):
     assessment = PlacementAssessment.objects.create(student=student_b)
     res = client_for(teacher_a).get(ANALYZE.format(assessment.id))
