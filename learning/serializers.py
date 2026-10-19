@@ -9,6 +9,7 @@ from .models import (
     PlacementAssessment,
     PlacementAttempt,
     Question,
+    StoreItem,
     Student,
     PracticeSession,
     QuestionAttempt,
@@ -300,3 +301,13 @@ class GuardianLinkSerializer(serializers.ModelSerializer):
         model = GuardianLink
         fields = ["id", "user", "email", "relationship", "created_at"]
         read_only_fields = fields
+
+class StoreItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StoreItem
+        fields = ["id", "name", "slot", "price", "asset_key", "is_active"]
+        read_only_fields = ["id"]
+
+
+class StoreItemRequestSerializer(serializers.Serializer):
+    item_id = serializers.IntegerField(min_value=1)

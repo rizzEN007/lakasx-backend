@@ -8,7 +8,8 @@ from django.db import IntegrityError, transaction
 from django.db.models import F, Sum
 from django.utils import timezone
 
-from ..models import PracticeSession, Question, QuestionAttempt, XPEvent
+from ..models import CoinTransaction, PracticeSession, Question, QuestionAttempt, XPEvent
+from .coins import award_coins
 from .xp import award_xp, xp_progress
 
 
@@ -172,18 +173,28 @@ def submit_answer(student, answer_given):
         )
 
         xp_earned = 0
+        coins_earned = 0
         if is_correct:
             xp_earned += _award(student, XPEvent.Reason.CORRECT_ANSWER, session)
+            coins_earned += _coins(student, CoinTransaction.Reason.CORRECT_ANSWER, session)
             if first_try:
                 xp_earned += _award(student, XPEvent.Reason.FIRST_TRY_BONUS, session)
+                coins_earned += _coins(student, CoinTransaction.Reason.FIRST_TRY_BONUS, session)
 
         answered = session.question_attempts.count()
         complete = answered >= settings.PRACTICE_SESSION_LENGTH
         if complete:
             xp_earned += _award(student, XPEvent.Reason.SESSION_COMPLETE, session)
+            coins_earned += _coins(student, CoinTransaction.Reason.SESSION_COMPLETE, session)
             session.ended_at = now
 
         streak_extended = record_activity(student, xp_earned)
+        if streak_extended:
+            coins_earned += _coins(student, CoinTransaction.Reason.DAILY_GOAL, session)
+            if student.streak_count in settings.COIN_STREAK_MILESTONES:
+                coins_earned += _coins(
+                    student, CoinTransaction.Reason.STREAK_MILESTONE, session
+                )
 
         session.current_question = None
         session.served_at = None
@@ -192,14 +203,16 @@ def submit_answer(student, answer_given):
             update_fields=["current_question", "served_at", "last_activity_at", "ended_at"]
         )
 
-    student.refresh_from_db(fields=["total_xp"])
+    student.refresh_from_db(fields=["total_xp", "coin_balance"])
     progress = xp_progress(student.total_xp)
     return {
         "is_correct": is_correct,
         "correct_answer": question.answer,
         "time_taken_seconds": time_taken,
         "xp_earned": xp_earned,
+        "coins_earned": coins_earned,
         "total_xp": student.total_xp,
+        "coin_balance": student.coin_balance,
         "level": progress["level"],
         "xp_to_next_level": progress["xp_to_next_level"],
         "answered": answered,
@@ -237,3 +250,10 @@ def session_results(session):
         "xp_earned": xp_earned,
         "completed": answered >= settings.PRACTICE_SESSION_LENGTH,
     }
+
+def _coins(student, reason, session):
+    amount = settings.COIN_RULES[reason.value]
+    if amount <= 0:  # a rule set to 0 switches that reward off
+        return 0
+    award_coins(student, amount, reason, practice_session=session)
+    return amount

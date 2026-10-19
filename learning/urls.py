@@ -11,6 +11,8 @@ from .auth_views import RegisterView, MeView, LoginView
 from .views import(
     ParentChildViewSet,
     PracticeViewSet,
+    StoreViewSet,
+    StoreItemViewSet,
     StudentViewSet, 
     PracticeSessionViewSet, 
     QuestionViewSet, 
@@ -39,6 +41,8 @@ router.register("placement-assessments", PlacementAssessmentViewSet)
 router.register("placement-attempts", PlacementAttemptViewSet)
 router.register("practice", PracticeViewSet, basename="practice")
 router.register("parent/children", ParentChildViewSet, basename="parent-child")
+router.register("store-items", StoreItemViewSet, basename="store-item")
+router.register("store", StoreViewSet, basename="store")
 
 urlpatterns = [
     path(

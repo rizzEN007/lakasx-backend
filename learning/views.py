@@ -23,7 +23,8 @@ from .access import (
     is_school_admin,
     linked_student,
 )
-from .services import practice, reports 
+from .services import practice, reports
+from .services import store as store_service
 from .services.practice import PracticeError, session_results, settings
 from .services.placement import analyze_placement
 from .models import (
@@ -36,6 +37,7 @@ from .models import (
     PlacementAssessment,
     PlacementAttempt,
     GuardianLink,
+    StoreItem,
 )
 from .serializers import (
     QuestionSerializer,
@@ -50,6 +52,8 @@ from .serializers import (
     PracticeQuestionSerializer,
     PracticeAnswerSerializer,  
     AddGuardianSerializer,
+    StoreItemSerializer,
+    StoreItemRequestSerializer,
 )
 
 
@@ -372,3 +376,80 @@ class ParentChildViewSet(viewsets.ViewSet):
     def weekly_summary(self, request, pk=None):
         link = get_object_or_404(self._links(request), student_id=pk)
         return Response(reports.weekly_summary(link.student))
+
+class StoreItemViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """The shop catalog. Any member reads it; only a superuser changes it.
+
+    There is no DELETE: retire an item with is_active=false, because students may own it.
+    """
+
+    queryset = StoreItem.objects.all().order_by("slot", "price", "id")
+    serializer_class = StoreItemSerializer
+    permission_classes = [
+        IsAuthenticated,
+        IsSchoolMember,
+        IsPlatformSuperuserOrReadOnly,
+    ]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.is_superuser:
+            return queryset
+        return queryset.filter(is_active=True)
+
+
+class StoreViewSet(viewsets.ViewSet):
+    """A student's wallet, shop and avatar inventory."""
+
+    permission_classes = [IsAuthenticated, IsLinkedStudent]
+
+    @staticmethod
+    def _error(error):
+        http = (
+            status.HTTP_404_NOT_FOUND
+            if error.code == "ITEM_NOT_FOUND"
+            else status.HTTP_409_CONFLICT
+        )
+        return Response({"code": error.code, "detail": error.message}, status=http)
+
+    @action(detail=False, methods=["get"])
+    def wallet(self, request):
+        return Response(store_service.wallet(linked_student(request.user)))
+
+    @action(detail=False, methods=["get"])
+    def shop(self, request):
+        return Response(store_service.shop(linked_student(request.user)))
+
+    @action(detail=False, methods=["get"])
+    def inventory(self, request):
+        return Response(store_service.inventory(linked_student(request.user)))
+
+    def _change(self, request, operation, success_status):
+        serializer = StoreItemRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        student = linked_student(request.user)
+        try:
+            owned = operation(student, serializer.validated_data["item_id"])
+        except store_service.StoreError as error:
+            return self._error(error)
+        body = store_service.entry(owned)
+        body["balance"] = student.coin_balance
+        return Response(body, status=success_status)
+
+    @action(detail=False, methods=["post"])
+    def buy(self, request):
+        return self._change(request, store_service.buy_item, status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"])
+    def equip(self, request):
+        return self._change(request, store_service.equip_item, status.HTTP_200_OK)
+
+    @action(detail=False, methods=["post"])
+    def unequip(self, request):
+        return self._change(request, store_service.unequip_item, status.HTTP_200_OK)

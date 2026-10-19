@@ -27,6 +27,7 @@ class Student(models.Model):
         validators=GRADE_VALIDATORS,
     )
     total_xp = models.PositiveIntegerField(default=0)
+    coin_balance = models.PositiveIntegerField(default=0)
     streak_count = models.PositiveIntegerField(default=0)
     longest_streak = models.PositiveIntegerField(default=0)
     last_goal_date = models.DateField(null=True, blank=True)
@@ -349,4 +350,105 @@ class GuardianLink(models.Model):
 
     def __str__(self):
         return f"{self.user} → {self.student.name} ({self.relationship})"
-    
+
+class StoreItem(models.Model):
+    class Slot(models.TextChoices):
+        HAT = "HAT", "Hat"
+        OUTFIT = "OUTFIT", "Outfit"
+        BACKGROUND = "BACKGROUND", "Background"
+
+    name = models.CharField(max_length=100)
+    slot = models.CharField(max_length=12, choices=Slot.choices)
+    price = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    asset_key = models.CharField(max_length=100, unique=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(price__gt=0),
+                name="store_item_price_positive",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.slot}, {self.price})"
+
+
+class CoinTransaction(models.Model):
+    class Reason(models.TextChoices):
+        CORRECT_ANSWER = "CORRECT_ANSWER", "Correct answer"
+        FIRST_TRY_BONUS = "FIRST_TRY_BONUS", "First-try bonus"
+        SESSION_COMPLETE = "SESSION_COMPLETE", "Session completed"
+        DAILY_GOAL = "DAILY_GOAL", "Daily goal met"
+        STREAK_MILESTONE = "STREAK_MILESTONE", "Streak milestone"
+        PURCHASE = "PURCHASE", "Store purchase"
+
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="coin_transactions",
+    )
+    amount = models.IntegerField()  # positive = earned, negative = spent
+    balance_after = models.PositiveIntegerField()
+    reason = models.CharField(max_length=20, choices=Reason.choices)
+    practice_session = models.ForeignKey(
+        "PracticeSession",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="coin_transactions",
+    )
+    store_item = models.ForeignKey(
+        StoreItem,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchases",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["student", "created_at"])]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(amount=0),
+                name="coin_transaction_amount_nonzero",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.student.name} {self.amount:+d} ({self.reason})"
+
+
+class StudentItem(models.Model):
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="owned_items",
+    )
+    item = models.ForeignKey(
+        StoreItem,
+        on_delete=models.PROTECT,
+        related_name="owners",
+    )
+    slot = models.CharField(max_length=12, choices=StoreItem.Slot.choices)
+    equipped = models.BooleanField(default=False)
+    acquired_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "item"],
+                name="unique_item_per_student",
+            ),
+            models.UniqueConstraint(
+                fields=["student", "slot"],
+                condition=models.Q(equipped=True),
+                name="one_equipped_item_per_slot",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.student.name}: {self.item.name}"
